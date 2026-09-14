@@ -16,8 +16,6 @@
     button.secondary:hover { background-color: #616161; }
     button.danger { background-color: #d32f2f; }
     button.danger:hover { background-color: #b71c1c; }
-    button.success { background-color: #2e7d32; }
-    button.success:hover { background-color: #1b5e20; }
     button.discovery { background-color: #d32f2f; color: white; }
     button.discovery:hover { background-color: #b71c1c; }
 
@@ -33,12 +31,6 @@
     .discovery-input input { width: 50px; text-align: center; padding: 5px; font-weight: bold; font-size: 1em; border: 1px solid #ccc; border-radius: 4px; }
     .fixed-num { background: #eeeeee; font-weight: bold; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; color: #222; }
 
-    .stats { width: 100%; max-width: 850px; margin-top: 15px; background: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); box-sizing: border-box; }
-    .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-top: 10px; }
-    .stat-card { background: #f8f9fa; padding: 12px; border-radius: 6px; border: 1px solid #e0e0e0; text-align: center; }
-    .stat-title { font-size: 0.85em; color: #666; text-transform: uppercase; }
-    .stat-value { font-size: 1.3em; font-weight: bold; color: #1976d2; margin-top: 5px; }
-    .hidden { display: none; }
     .feedback-msg { font-weight: bold; margin-top: 6px; font-size: 0.95em; }
   </style>
   <!-- Three.js and OrbitControls -->
@@ -60,7 +52,6 @@
   <button onclick="addSmallLayer()">+ Add Small Layer</button>
   <button class="danger" onclick="removeSmallLayer()">- Remove Small Layer</button>
   <button class="secondary" onclick="resetApp()">Reset Base Layer</button>
-  <button class="success" onclick="toggleAnswers()">Check Answers</button>
 </div>
 
 <div id="canvas-container"></div>
@@ -108,27 +99,6 @@
       <button onclick="verifyStep3()">Verify</button>
     </div>
     <div id="fbStep3" class="feedback-msg"></div>
-  </div>
-</div>
-
-<div class="stats">
-  <div id="promptText" style="text-align: center;">Stack the cubes until the box is completely filled, then click <strong>"Check Answers"</strong>.</div>
-  
-  <div id="answersPanel" class="hidden">
-    <div class="results-grid">
-      <div class="stat-card">
-        <div class="stat-title">Large Cube Layers</div>
-        <div class="stat-value" id="largeLayerCount">1</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-title">(a) Total Small Cubes</div>
-        <div class="stat-value" id="smallCubeCount">6</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-title">Box Height Status</div>
-        <div class="stat-value" id="heightStatus">Underfilled</div>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -268,8 +238,6 @@ function updateCubes() {
   if (showGuideLines) {
     drawWidthGuideLines();
   }
-
-  updateStatsDisplay();
 }
 
 function drawWidthGuideLines() {
@@ -365,35 +333,6 @@ function resetApp() {
   largeLayers = 1;
   smallLayers = 1;
   updateCubes();
-}
-
-function toggleAnswers() {
-  const panel = document.getElementById('answersPanel');
-  panel.classList.toggle('hidden');
-}
-
-function updateStatsDisplay() {
-  const totalLarge = largeLayers * 2;
-  const totalSmall = smallLayers * 6;
-
-  const largeHeight = largeLayers * L_EDGE;
-  const smallHeight = smallLayers * S_EDGE;
-
-  document.getElementById('largeLayerCount').innerText = `${largeLayers} (${totalLarge} cubes)`;
-  document.getElementById('smallCubeCount').innerText = totalSmall;
-
-  const statusElem = document.getElementById('heightStatus');
-
-  if (Math.abs(largeHeight - BOX_H) < 0.01 && Math.abs(smallHeight - BOX_H) < 0.01) {
-    statusElem.innerText = "Exact Brim Fill!";
-    statusElem.style.color = "#2e7d32";
-  } else if (largeHeight > BOX_H || smallHeight > BOX_H) {
-    statusElem.innerText = "Overflowing Box!";
-    statusElem.style.color = "#d32f2f";
-  } else {
-    statusElem.innerText = "Underfilled";
-    statusElem.style.color = "#1976d2";
-  }
 }
 
 function onWindowResize() {
