@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>3D Cube Packing Interactive Workspace</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; align-items: center; background: #f0f2f5; margin: 0; padding: 20px; }
+    h2 { margin-bottom: 5px; color: #333; }
+    .instructions { color: #555; margin-bottom: 15px; text-align: center; font-size: 0.95em; }
+
+    .controls { background: white; padding: 12px 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
+    
+    button { background-color: #1976d2; color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+    button:hover { background-color: #1565c0; }
+    button.secondary { background-color: #757575; }
+    button.secondary:hover { background-color: #616161; }
+    button.danger { background-color: #d32f2f; }
+    button.danger:hover { background-color: #b71c1c; }
+    button.success { background-color: #2e7d32; }
+    button.success:hover { background-color: #1b5e20; }
+    button.discovery { background-color: #d32f2f; color: white; }
+    button.discovery:hover { background-color: #b71c1c; }
+
+    #canvas-container { width: 850px; height: 480px; position: relative; background: #18191c; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); overflow: hidden; }
+    canvas { width: 100%; height: 100%; display: block; }
+
+    .discovery-card { width: 100%; max-width: 850px; margin-top: 15px; background: #fff; padding: 18px 20px; border-radius: 8px; border: 2px solid #d32f2f; box-shadow: 0 2px 8px rgba(0,0,0,0.08); box-sizing: border-box; }
+    .discovery-step { margin-bottom: 15px; padding-bottom: 12px; border-bottom: 1px dashed #e0e0e0; }
+    .discovery-step:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .step-title { font-weight: bold; color: #d32f2f; font-size: 1em; margin-bottom: 6px; }
+    
+    .discovery-input { display: flex; align-items: center; gap: 8px; font-weight: bold; color: #333; flex-wrap: wrap; margin-top: 6px; }
+    .discovery-input input { width: 50px; text-align: center; padding: 5px; font-weight: bold; font-size: 1em; border: 1px solid #ccc; border-radius: 4px; }
+    .fixed-num { background: #eeeeee; font-weight: bold; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; color: #222; }
+
+    .stats { width: 100%; max-width: 850px; margin-top: 15px; background: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); box-sizing: border-box; }
+    .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-top: 10px; }
+    .stat-card { background: #f8f9fa; padding: 12px; border-radius: 6px; border: 1px solid #e0e0e0; text-align: center; }
+    .stat-title { font-size: 0.85em; color: #666; text-transform: uppercase; }
+    .stat-value { font-size: 1.3em; font-weight: bold; color: #1976d2; margin-top: 5px; }
+    .hidden { display: none; }
+    .feedback-msg { font-weight: bold; margin-top: 6px; font-size: 0.95em; }
+  </style>
+  <!-- Three.js and OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+<h2>3D Cube Packing Interactive Workspace</h2>
+<p class="instructions">
+  Drag left-click to <strong>rotate view</strong> | Scroll to <strong>zoom</strong> | Right-click to <strong>pan</strong><br>
+  Follow the guided steps below to discover how many small cubes fill the box to the brim.
+</p>
+
+<div class="controls">
+  <button class="discovery" onclick="toggleComparisonLines()">Toggle Red Alignment Guides</button>
+  <button onclick="addLargeLayer()">+ Add Large Layer</button>
+  <button class="danger" onclick="removeLargeLayer()">- Remove Large Layer</button>
+  <button onclick="addSmallLayer()">+ Add Small Layer</button>
+  <button class="danger" onclick="removeSmallLayer()">- Remove Small Layer</button>
+  <button class="secondary" onclick="resetApp()">Reset Base Layer</button>
+  <button class="success" onclick="toggleAnswers()">Check Answers</button>
+</div>
+
+<div id="canvas-container"></div>
+
+<!-- Guided Step-by-Step Discovery -->
+<div class="discovery-card">
+  <!-- Step 1 -->
+  <div class="discovery-step">
+    <div class="step-title">Step 1: Side-by-Side Length Comparison</div>
+    <div>Look along the red lines from front to back:</div>
+    <div class="discovery-input">
+      <span>Length of</span>
+      <span class="fixed-num">2</span>
+      <span>large cube edges = Length of</span>
+      <input type="number" id="userSmallCount" placeholder="?">
+      <span>small cube edges</span>
+      <button onclick="verifyStep1()">Verify</button>
+    </div>
+    <div id="fbStep1" class="feedback-msg"></div>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="discovery-step">
+    <div class="step-title">Step 2: Large Cubes Packed to Brim</div>
+    <div>Jack packs all 8 large cubes into the box (2 large cubes in each layer):</div>
+    <div class="discovery-input">
+      <span>Number of large layers needed for 8 cubes = 8 ÷ 2 =</span>
+      <input type="number" id="userLargeLayers" placeholder="?">
+      <span>layers tall</span>
+      <button onclick="verifyStep2()">Verify</button>
+    </div>
+    <div id="fbStep2" class="feedback-msg"></div>
+  </div>
+
+  <!-- Step 3 & 4 -->
+  <div class="discovery-step">
+    <div class="step-title">Step 3: Finding Total Small Cubes</div>
+    <div>Since 2 large cube heights = 3 small cube heights, how many small layers match 4 large layers tall?</div>
+    <div class="discovery-input">
+      <span>Small layers needed =</span>
+      <input type="number" id="userSmallLayers" placeholder="?">
+      <span>layers tall</span>
+      <span>| Total small cubes (6 per layer) =</span>
+      <input type="number" id="userTotalSmall" placeholder="?">
+      <button onclick="verifyStep3()">Verify</button>
+    </div>
+    <div id="fbStep3" class="feedback-msg"></div>
+  </div>
+</div>
+
+<div class="stats">
+  <div id="promptText" style="text-align: center;">Stack the cubes until the box is completely filled, then click <strong>"Check Answers"</strong>.</div>
+  
+  <div id="answersPanel" class="hidden">
+    <div class="results-grid">
+      <div class="stat-card">
+        <div class="stat-title">Large Cube Layers</div>
+        <div class="stat-value" id="largeLayerCount">1</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">(a) Total Small Cubes</div>
+        <div class="stat-value" id="smallCubeCount">6</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Box Height Status</div>
+        <div class="stat-value" id="heightStatus">Underfilled</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let scene, camera, renderer, controls;
+let boxContainer;
+let largeCubeGroup, smallCubeGroup, guideGroup;
+
+const S_EDGE = 1.0;
+const L_EDGE = 1.5;
+const BOX_W = 3.0;
+const BOX_D = 3.0;
+const BOX_H = 6.0;
+
+let largeLayers = 1;
+let smallLayers = 1;
+let showGuideLines = true;
+
+function init() {
+  const container = document.getElementById('canvas-container');
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x141619);
+
+  camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+  camera.position.set(6, 7, 9);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.shadowMap.enabled = true;
+  container.appendChild(renderer.domElement);
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, BOX_H / 2, 0);
+  controls.update();
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(8, 15, 8);
+  dirLight.castShadow = true;
+  scene.add(dirLight);
+
+  const fillLight = new THREE.DirectionalLight(0x64b5f6, 0.4);
+  fillLight.position.set(-8, 10, -8);
+  scene.add(fillLight);
+
+  largeCubeGroup = new THREE.Group();
+  smallCubeGroup = new THREE.Group();
+  guideGroup = new THREE.Group();
+
+  scene.add(largeCubeGroup);
+  scene.add(smallCubeGroup);
+  scene.add(guideGroup);
+
+  createBoxWireframe();
+  updateCubes();
+
+  window.addEventListener('resize', onWindowResize);
+  animate();
+}
+
+function createBoxWireframe() {
+  const geometry = new THREE.BoxGeometry(BOX_W, BOX_H, BOX_D);
+  const material = new THREE.MeshPhongMaterial({
+    color: 0x64b5f6,
+    transparent: true,
+    opacity: 0.12,
+    depthWrite: false
+  });
+
+  boxContainer = new THREE.Mesh(geometry, material);
+  boxContainer.position.set(0, BOX_H / 2, 0);
+  scene.add(boxContainer);
+
+  const edges = new THREE.EdgesGeometry(geometry);
+  const lineMat = new THREE.LineBasicMaterial({ color: 0x4fc3f7, linewidth: 2 });
+  const line = new THREE.LineSegments(edges, lineMat);
+  boxContainer.add(line);
+}
+
+function updateCubes() {
+  while (largeCubeGroup.children.length > 0) largeCubeGroup.remove(largeCubeGroup.children[0]);
+  while (smallCubeGroup.children.length > 0) smallCubeGroup.remove(smallCubeGroup.children[0]);
+  while (guideGroup.children.length > 0) guideGroup.remove(guideGroup.children[0]);
+
+  const minX = -BOX_W / 2;
+  const minZ = -BOX_D / 2;
+
+  // 1. Large Cubes
+  for (let l = 0; l < largeLayers; l++) {
+    const yPos = l * L_EDGE + L_EDGE / 2;
+    const isOverflow = (l * L_EDGE + L_EDGE) > BOX_H + 0.001;
+
+    for (let z = 0; z < 2; z++) {
+      const xPos = minX + L_EDGE / 2;
+      const zPos = minZ + z * L_EDGE + L_EDGE / 2;
+
+      const mesh = createCubeMesh(L_EDGE, isOverflow ? 0xef5350 : 0x42a5f5, isOverflow ? 0xb71c1c : 0x1e88e5);
+      mesh.position.set(xPos, yPos, zPos);
+      largeCubeGroup.add(mesh);
+    }
+  }
+
+  // 2. Small Cubes
+  const smallWidthX = (BOX_W - L_EDGE) / 2;
+  const smallSizeZ = S_EDGE;
+
+  for (let l = 0; l < smallLayers; l++) {
+    const yPos = l * S_EDGE + S_EDGE / 2;
+    const isOverflow = (l * S_EDGE + S_EDGE) > BOX_H + 0.001;
+
+    for (let x = 0; x < 2; x++) {
+      for (let z = 0; z < 3; z++) {
+        const xPos = 0 + x * smallWidthX + smallWidthX / 2;
+        const zPos = minZ + z * smallSizeZ + smallSizeZ / 2;
+
+        const geom = new THREE.BoxGeometry(smallWidthX, S_EDGE, S_EDGE);
+        const mat = new THREE.MeshPhongMaterial({
+          color: isOverflow ? 0xef5350 : 0x66bb6a,
+          roughness: 0.3,
+          metalness: 0.1
+        });
+        const mesh = new THREE.Mesh(geom, mat);
+
+        const edges = new THREE.EdgesGeometry(geom);
+        const lineMat = new THREE.LineBasicMaterial({ color: isOverflow ? 0xb71c1c : 0x2e7d32, linewidth: 1.5 });
+        const line = new THREE.LineSegments(edges, lineMat);
+        mesh.add(line);
+
+        mesh.position.set(xPos, yPos, zPos);
+        smallCubeGroup.add(mesh);
+      }
+    }
+  }
+
+  if (showGuideLines) {
+    drawWidthGuideLines();
+  }
+
+  updateStatsDisplay();
+}
+
+function drawWidthGuideLines() {
+  // Bright prominent RED lines for high contrast visibility
+  const lineMatRed = new THREE.LineDashedMaterial({ color: 0xff0000, dashSize: 0.12, gapSize: 0.06, linewidth: 4 });
+
+  // Red Guide Line along 2 Large Edges (Left)
+  const pointsL = [
+    new THREE.Vector3(-1.5, 0.02, -1.5),
+    new THREE.Vector3(-1.5, 0.02, 1.5)
+  ];
+  const geomL = new THREE.BufferGeometry().setFromPoints(pointsL);
+  const lineL = new THREE.Line(geomL, lineMatRed);
+  lineL.computeLineDistances();
+  guideGroup.add(lineL);
+
+  // Red Guide Line along 3 Small Edges (Right)
+  const pointsS = [
+    new THREE.Vector3(1.5, 0.02, -1.5),
+    new THREE.Vector3(1.5, 0.02, 1.5)
+  ];
+  const geomS = new THREE.BufferGeometry().setFromPoints(pointsS);
+  const lineS = new THREE.Line(geomS, lineMatRed);
+  lineS.computeLineDistances();
+  guideGroup.add(lineS);
+}
+
+function toggleComparisonLines() {
+  showGuideLines = !showGuideLines;
+  guideGroup.visible = showGuideLines;
+}
+
+function createCubeMesh(size, fillColor, borderColor) {
+  const geom = new THREE.BoxGeometry(size, size, size);
+  const mat = new THREE.MeshPhongMaterial({ color: fillColor, roughness: 0.3, metalness: 0.1 });
+  const mesh = new THREE.Mesh(geom, mat);
+
+  const edges = new THREE.EdgesGeometry(geom);
+  const lineMat = new THREE.LineBasicMaterial({ color: borderColor, linewidth: 1.5 });
+  const line = new THREE.LineSegments(edges, lineMat);
+  mesh.add(line);
+
+  return mesh;
+}
+
+function verifyStep1() {
+  const sm = parseInt(document.getElementById('userSmallCount').value);
+  const fb = document.getElementById('fbStep1');
+  if (sm === 3) {
+    fb.style.color = "#2e7d32";
+    fb.innerText = " Correct! The length of 2 large cube edges equals the length of 3 small cube edges.";
+  } else {
+    fb.style.color = "#d32f2f";
+    fb.innerText = "❌ Look along the right red line from front to back: How many small cubes span that same distance?";
+  }
+}
+
+function verifyStep2() {
+  const layers = parseInt(document.getElementById('userLargeLayers').value);
+  const fb = document.getElementById('fbStep2');
+  if (layers === 4) {
+    fb.style.color = "#2e7d32";
+    fb.innerText = " Correct! With 2 large cubes in each layer, 8 large cubes fill 4 layers high.";
+  } else {
+    fb.style.color = "#d32f2f";
+    fb.innerText = "❌ Each layer contains 2 large cubes. How many layers are needed to pack all 8 large cubes? (8 ÷ 2)";
+  }
+}
+
+function verifyStep3() {
+  const smLayers = parseInt(document.getElementById('userSmallLayers').value);
+  const totalSm = parseInt(document.getElementById('userTotalSmall').value);
+  const fb = document.getElementById('fbStep3');
+
+  if (smLayers === 6 && totalSm === 36) {
+    fb.style.color = "#2e7d32";
+    fb.innerText = " Outstanding! 4 large layers (equivalent to 2 pairs = 2 × 3 = 6 small layers) gives 6 × 6 = 36 small cubes total.";
+  } else if (smLayers !== 6) {
+    fb.style.color = "#d32f2f";
+    fb.innerText = "❌ Remember: Every 2 large layers match 3 small layers in height. How many small layers match 4 large layers?";
+  } else {
+    fb.style.color = "#d32f2f";
+    fb.innerText = "❌ Correct small layers (6), but check the total count: 6 layers × 6 small cubes per layer.";
+  }
+}
+
+function addLargeLayer() { largeLayers++; updateCubes(); }
+function removeLargeLayer() { if (largeLayers > 0) largeLayers--; updateCubes(); }
+function addSmallLayer() { smallLayers++; updateCubes(); }
+function removeSmallLayer() { if (smallLayers > 0) smallLayers--; updateCubes(); }
+
+function resetApp() {
+  largeLayers = 1;
+  smallLayers = 1;
+  updateCubes();
+}
+
+function toggleAnswers() {
+  const panel = document.getElementById('answersPanel');
+  panel.classList.toggle('hidden');
+}
+
+function updateStatsDisplay() {
+  const totalLarge = largeLayers * 2;
+  const totalSmall = smallLayers * 6;
+
+  const largeHeight = largeLayers * L_EDGE;
+  const smallHeight = smallLayers * S_EDGE;
+
+  document.getElementById('largeLayerCount').innerText = `${largeLayers} (${totalLarge} cubes)`;
+  document.getElementById('smallCubeCount').innerText = totalSmall;
+
+  const statusElem = document.getElementById('heightStatus');
+
+  if (Math.abs(largeHeight - BOX_H) < 0.01 && Math.abs(smallHeight - BOX_H) < 0.01) {
+    statusElem.innerText = "Exact Brim Fill!";
+    statusElem.style.color = "#2e7d32";
+  } else if (largeHeight > BOX_H || smallHeight > BOX_H) {
+    statusElem.innerText = "Overflowing Box!";
+    statusElem.style.color = "#d32f2f";
+  } else {
+    statusElem.innerText = "Underfilled";
+    statusElem.style.color = "#1976d2";
+  }
+}
+
+function onWindowResize() {
+  const container = document.getElementById('canvas-container');
+  camera.aspect = container.clientWidth / container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth, container.clientHeight);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+window.onload = init;
+</script>
+
+</body>
+</html>
